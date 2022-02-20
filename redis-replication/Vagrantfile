@@ -1,0 +1,41 @@
+$box = "ubuntu/bionic64"
+
+$script = <<-SCRIPT
+apt-get update
+
+add-apt-repository ppa:redislabs/redis
+apt-get update
+apt-get install redis -y
+
+mv /home/vagrant/redis.conf /etc/redis/
+chown -R redis:redis /etc/redis
+systemctl restart redis-server
+
+ufw disable
+
+SCRIPT
+
+Vagrant.configure("2") do |config|
+
+    config.vm.define "master" do |node|
+      node.vm.box = $box
+      node.vm.network "private_network", ip: "10.0.0.20"
+      node.vm.hostname = "master"
+      node.vm.provision "file", source: "./master-redis/redis.conf", destination: "~/"
+      node.vm.provision "shell", inline: $script
+    end
+	
+    config.vm.define "slave" do |node|
+      node.vm.box = $box
+      node.vm.network "private_network", ip: "10.0.0.21"
+      node.vm.hostname = "slave"
+      node.vm.provision "file", source: "./slaves-redis/redis.conf", destination: "~/"
+      node.vm.provision "shell", inline: $script
+    end
+
+  config.vm.provider "virtualbox" do |v|
+  	v.memory = 1024
+  	v.cpus = 2
+  end
+
+end
